@@ -2,6 +2,7 @@ package io.nekohasekai.sagernet.ui
 
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -72,7 +73,11 @@ class MainActivity : ThemedActivity(),
             runOnDefaultDispatcher {
                 ensureBuiltinSubscription()
                 onMainDispatcher {
-                    displayFragmentWithId(R.id.nav_configuration)
+                    if (intent.getBooleanExtra("dashvpn_logs", false)) {
+                        displayFragment(LogcatFragment())
+                    } else {
+                        displayFragmentWithId(R.id.nav_configuration)
+                    }
                 }
             }
         }
@@ -111,6 +116,13 @@ class MainActivity : ThemedActivity(),
                 .setMessage(R.string.preview_version_hint)
                 .setPositiveButton(android.R.string.ok, null)
                 .show()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.getBooleanExtra("dashvpn_logs", false)) {
+            displayFragment(LogcatFragment())
         }
     }
 

@@ -102,7 +102,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var trafficSniffing by configurationStore.stringToInt(Key.TRAFFIC_SNIFFING) { 1 }
     var resolveDestination by configurationStore.boolean(Key.RESOLVE_DESTINATION)
 
-    var mtu by configurationStore.stringToInt(Key.MTU) { 9000 }
+    var mtu by configurationStore.stringToInt(Key.MTU) { 1500 }
 
     var bypassLan by configurationStore.boolean(Key.BYPASS_LAN)
     var bypassLanInCore by configurationStore.boolean(Key.BYPASS_LAN_IN_CORE)
@@ -114,12 +114,12 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var globalCustomConfig by configurationStore.string(Key.GLOBAL_CUSTOM_CONFIG) { "" }
 
     var remoteDns by configurationStore.string(Key.REMOTE_DNS) { "https://dns.google/dns-query" }
-    var directDns by configurationStore.string(Key.DIRECT_DNS) { "https://223.5.5.5/dns-query" }
+    var directDns by configurationStore.string(Key.DIRECT_DNS) { "https://1.1.1.1/dns-query" }
     var enableDnsRouting by configurationStore.boolean(Key.ENABLE_DNS_ROUTING) { true }
     var enableFakeDns by configurationStore.boolean(Key.ENABLE_FAKEDNS) { true }
 
     var rulesProvider by configurationStore.stringToInt(Key.RULES_PROVIDER)
-    var logLevel by configurationStore.stringToInt(Key.LOG_LEVEL)
+    var logLevel by configurationStore.stringToInt(Key.LOG_LEVEL) { 2 }
     var logBufSize by configurationStore.int(Key.LOG_BUF_SIZE) { 0 }
     var acquireWakeLock by configurationStore.boolean(Key.ACQUIRE_WAKE_LOCK)
 
