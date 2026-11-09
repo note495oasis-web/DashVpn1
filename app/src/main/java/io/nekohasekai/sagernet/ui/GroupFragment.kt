@@ -65,11 +65,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             override fun getSwipeDirs(
                 recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder
             ): Int {
-                val proxyGroup = (viewHolder as GroupHolder).proxyGroup
-                if (proxyGroup.ungrouped || proxyGroup.id in GroupUpdater.updating) {
-                    return 0
-                }
-                return super.getSwipeDirs(recyclerView, viewHolder)
+                return 0
             }
 
             override fun getDragDirs(
@@ -109,10 +105,6 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
     override fun onMenuItemClick(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.action_new_group -> {
-                startActivity(Intent(context, GroupSettingsActivity::class.java))
-            }
-
             R.id.action_update_all -> {
                 MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
                     .setMessage(R.string.update_all_subscription)
@@ -383,7 +375,8 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
             itemView.setOnClickListener { }
 
-            editButton.isGone = proxyGroup.ungrouped
+            optionsButton.isGone = proxyGroup.type == GroupType.SUBSCRIPTION
+            editButton.isGone = proxyGroup.ungrouped || proxyGroup.type == GroupType.SUBSCRIPTION
             updateButton.isInvisible = proxyGroup.type != GroupType.SUBSCRIPTION
             groupName.text = proxyGroup.displayName()
 
@@ -436,7 +429,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
                 subscriptionUpdateProgress.isVisible = false
                 updateButton.isInvisible = proxyGroup.type != GroupType.SUBSCRIPTION
-                editButton.isGone = proxyGroup.ungrouped
+                editButton.isGone = proxyGroup.ungrouped || proxyGroup.type == GroupType.SUBSCRIPTION
             }
 
             val subscription = proxyGroup.subscription

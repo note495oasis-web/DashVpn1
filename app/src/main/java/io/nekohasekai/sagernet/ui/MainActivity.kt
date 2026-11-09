@@ -2,9 +2,7 @@ package io.nekohasekai.sagernet.ui
 
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
@@ -32,23 +30,17 @@ import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.GroupManager
 import io.nekohasekai.sagernet.database.ProfileManager
 import io.nekohasekai.sagernet.database.ProxyGroup
+import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.database.SubscriptionBean
 import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
 import io.nekohasekai.sagernet.databinding.LayoutMainBinding
-import io.nekohasekai.sagernet.fmt.AbstractBean
-import io.nekohasekai.sagernet.fmt.KryoConverters
 import io.nekohasekai.sagernet.fmt.PluginEntry
 import io.nekohasekai.sagernet.group.GroupInterfaceAdapter
 import io.nekohasekai.sagernet.group.GroupUpdater
-import io.nekohasekai.sagernet.ktx.alert
-import io.nekohasekai.sagernet.ktx.isPlay
 import io.nekohasekai.sagernet.ktx.isPreview
 import io.nekohasekai.sagernet.ktx.launchCustomTab
 import io.nekohasekai.sagernet.ktx.onMainDispatcher
-import io.nekohasekai.sagernet.ktx.parseProxies
-import io.nekohasekai.sagernet.ktx.readableMessage
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
-import moe.matsuri.nb4a.utils.Util
 
 class MainActivity : ThemedActivity(),
     SagerConnection.Callback,
@@ -76,7 +68,12 @@ class MainActivity : ThemedActivity(),
         navigation.setNavigationItemSelectedListener(this)
 
         if (savedInstanceState == null) {
-            displayFragmentWithId(R.id.nav_configuration)
+            runOnDefaultDispatcher {
+                ensureBuiltinSubscription()
+                onMainDispatcher {
+                    displayFragmentWithId(R.id.nav_configuration)
+                }
+            }
         }
         onBackPressedDispatcher.addCallback {
             if (supportFragmentManager.findFragmentById(R.id.fragment_holder) is ConfigurationFragment) {
@@ -98,10 +95,6 @@ class MainActivity : ThemedActivity(),
         connection.connect(this, this)
         DataStore.configurationStore.registerChangeListener(this)
         GroupManager.userInterface = GroupInterfaceAdapter(this)
-
-        if (intent?.action == Intent.ACTION_VIEW) {
-            onNewIntent(intent)
-        }
 
         refreshNavMenu(DataStore.enableClashAPI)
 
@@ -132,20 +125,6 @@ class MainActivity : ThemedActivity(),
         }
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-
-        val uri = intent.data ?: return
-
-        runOnDefaultDispatcher {
-            if (uri.scheme == "sn" && uri.host == "subscription" || uri.scheme == "clash") {
-                importSubscription(uri)
-            } else {
-                importProfile(uri)
-            }
-        }
-    }
-
     fun urlTest(): Int {
         if (!DataStore.serviceState.connected || connection.service == null) {
             error("not started")
@@ -153,97 +132,23 @@ class MainActivity : ThemedActivity(),
         return connection.service!!.urlTest()
     }
 
-    suspend fun importSubscription(uri: Uri) {
-        val group: ProxyGroup
-
-        val url = uri.getQueryParameter("url")
-        if (!url.isNullOrBlank()) {
-            group = ProxyGroup(type = GroupType.SUBSCRIPTION)
-            val subscription = SubscriptionBean()
-            group.subscription = subscription
-
-            // cleartext format
-            subscription.link = url
-            group.name = uri.getQueryParameter("name")
-        } else {
-            val data = uri.encodedQuery.takeIf { !it.isNullOrBlank() } ?: return
-            try {
-                group = KryoConverters.deserialize(
-                    ProxyGroup().apply { export = true }, Util.zlibDecompress(Util.b64Decode(data))
-                ).apply {
-                    export = false
-                }
-            } catch (e: Exception) {
-                onMainDispatcher {
-                    alert(e.readableMessage).show()
-                }
-                return
-            }
+    private suspend fun ensureBuiltinSubscription() {
+        var group = SagerDatabase.groupDao.allGroups().firstOrNull {
+            it.type == GroupType.SUBSCRIPTION && it.subscription?.link == SUBSCRIPTION_LINK
         }
-
-        val name = group.name.takeIf { !it.isNullOrBlank() } ?: group.subscription?.link
-        ?: group.subscription?.token
-        if (name.isNullOrBlank()) return
-
-        group.name = group.name.takeIf { !it.isNullOrBlank() }
-            ?: ("Subscription #" + System.currentTimeMillis())
-
-        onMainDispatcher {
-
-            displayFragmentWithId(R.id.nav_group)
-
-            MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.subscription_import)
-                .setMessage(getString(R.string.subscription_import_message, name))
-                .setPositiveButton(R.string.yes) { _, _ ->
-                    runOnDefaultDispatcher {
-                        finishImportSubscription(group)
-                    }
+        if (group == null) {
+            group = GroupManager.createGroup(ProxyGroup(type = GroupType.SUBSCRIPTION).apply {
+                name = "DashVPN"
+                subscription = SubscriptionBean().apply {
+                    link = SUBSCRIPTION_LINK
+                    autoUpdate = true
+                    autoUpdateDelay = 360
                 }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-
+            })
+            DataStore.selectedGroup = group.id
         }
-
-    }
-
-    private suspend fun finishImportSubscription(subscription: ProxyGroup) {
-        GroupManager.createGroup(subscription)
-        GroupUpdater.startUpdate(subscription, true)
-    }
-
-    suspend fun importProfile(uri: Uri) {
-        val profile = try {
-            parseProxies(uri.toString()).getOrNull(0) ?: error(getString(R.string.no_proxies_found))
-        } catch (e: Exception) {
-            onMainDispatcher {
-                alert(e.readableMessage).show()
-            }
-            return
-        }
-
-        onMainDispatcher {
-            MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.profile_import)
-                .setMessage(getString(R.string.profile_import_message, profile.displayName()))
-                .setPositiveButton(R.string.yes) { _, _ ->
-                    runOnDefaultDispatcher {
-                        finishImportProfile(profile)
-                    }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        }
-
-    }
-
-    private suspend fun finishImportProfile(profile: AbstractBean) {
-        val targetId = DataStore.selectedGroupForImport()
-
-        ProfileManager.createProfile(targetId, profile)
-
-        onMainDispatcher {
-            displayFragmentWithId(R.id.nav_configuration)
-
-            snackbar(resources.getQuantityString(R.plurals.added, 1, 1)).show()
+        if (group.subscription?.lastUpdated == 0) {
+            GroupUpdater.startUpdate(group, false)
         }
     }
 
@@ -465,6 +370,11 @@ class MainActivity : ThemedActivity(),
         val fragment =
             supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ToolbarFragment
         return fragment != null && fragment.onKeyDown(keyCode, event)
+    }
+
+    companion object {
+        private const val SUBSCRIPTION_LINK =
+            "https://gist.githubusercontent.com/note495oasis-web/ef723a647366249d731973dc7769b36f/raw/gistfile1.txt"
     }
 
 }

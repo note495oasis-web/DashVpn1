@@ -211,17 +211,19 @@ class GroupSettingsActivity(
             DataStore.editingId = editingId
             runOnDefaultDispatcher {
                 if (editingId == 0L) {
-                    ProxyGroup().init()
-                } else {
-                    val entity = SagerDatabase.groupDao.getById(editingId)
-                    if (entity == null) {
-                        onMainDispatcher {
-                            finish()
-                        }
-                        return@runOnDefaultDispatcher
+                    onMainDispatcher {
+                        finish()
                     }
-                    entity.init()
+                    return@runOnDefaultDispatcher
                 }
+                val entity = SagerDatabase.groupDao.getById(editingId)
+                if (entity == null || entity.type == GroupType.SUBSCRIPTION) {
+                    onMainDispatcher {
+                        finish()
+                    }
+                    return@runOnDefaultDispatcher
+                }
+                entity.init()
 
                 onMainDispatcher {
                     supportFragmentManager.beginTransaction()

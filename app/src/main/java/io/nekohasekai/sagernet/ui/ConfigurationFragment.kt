@@ -1,11 +1,9 @@
 package io.nekohasekai.sagernet.ui
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
-import android.provider.OpenableColumns
 import android.text.SpannableStringBuilder
 import android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
 import android.text.format.Formatter
@@ -22,7 +20,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
-import androidx.core.net.toUri
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.core.view.size
@@ -53,13 +50,10 @@ import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
 import io.nekohasekai.sagernet.databinding.LayoutProfileListBinding
 import io.nekohasekai.sagernet.databinding.LayoutProgressListBinding
-import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.fmt.toUniversalLink
 import io.nekohasekai.sagernet.group.GroupUpdater
-import io.nekohasekai.sagernet.group.RawUpdater
 import io.nekohasekai.sagernet.ktx.FixedLinearLayoutManager
 import io.nekohasekai.sagernet.ktx.Logs
-import io.nekohasekai.sagernet.ktx.SubscriptionFoundException
 import io.nekohasekai.sagernet.ktx.alert
 import io.nekohasekai.sagernet.ktx.app
 import io.nekohasekai.sagernet.ktx.dp2px
@@ -77,19 +71,6 @@ import io.nekohasekai.sagernet.ktx.snackbar
 import io.nekohasekai.sagernet.ktx.startFilesForResult
 import io.nekohasekai.sagernet.ktx.tryToShow
 import io.nekohasekai.sagernet.plugin.PluginManager
-import io.nekohasekai.sagernet.ui.profile.ChainSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.HttpSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.HysteriaSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.MieruSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.NaiveSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.SSHSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.ShadowsocksSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.SocksSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.TrojanGoSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.TrojanSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.TuicSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.VMessSettingsActivity
-import io.nekohasekai.sagernet.ui.profile.WireGuardSettingsActivity
 import io.nekohasekai.sagernet.widget.QRCodeDialog
 import io.nekohasekai.sagernet.widget.UndoSnackbarManager
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -102,9 +83,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import moe.matsuri.nb4a.Protocols
 import moe.matsuri.nb4a.Protocols.getProtocolColor
-import moe.matsuri.nb4a.proxy.anytls.AnyTLSSettingsActivity
-import moe.matsuri.nb4a.proxy.config.ConfigSettingActivity
-import moe.matsuri.nb4a.proxy.shadowtls.ShadowTLSSettingsActivity
 import moe.matsuri.nb4a.ui.ConnectionTestNotification
 import okhttp3.internal.closeQuietly
 import java.net.InetSocketAddress
@@ -113,7 +91,6 @@ import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.zip.ZipInputStream
 
 class ConfigurationFragment @JvmOverloads constructor(
     val select: Boolean = false, val selectedItem: ProxyEntity? = null, val titleRes: Int = 0
@@ -280,171 +257,8 @@ class ConfigurationFragment @JvmOverloads constructor(
         return super.onKeyDown(ketCode, event)
     }
 
-    private val importFile =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { file ->
-            if (file != null) runOnDefaultDispatcher {
-                try {
-                    val fileName =
-                        requireContext().contentResolver.query(file, null, null, null, null)
-                            ?.use { cursor ->
-                                cursor.moveToFirst()
-                                cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)
-                                    .let(cursor::getString)
-                            }
-                    val proxies = mutableListOf<AbstractBean>()
-                    if (fileName != null && fileName.endsWith(".zip")) {
-                        // try parse wireguard zip
-                        val zip =
-                            ZipInputStream(requireContext().contentResolver.openInputStream(file)!!)
-                        while (true) {
-                            val entry = zip.nextEntry ?: break
-                            if (entry.isDirectory) continue
-                            val fileText = zip.bufferedReader().readText()
-                            RawUpdater.parseRaw(fileText, entry.name)
-                                ?.let { pl -> proxies.addAll(pl) }
-                            zip.closeEntry()
-                        }
-                        zip.closeQuietly()
-                    } else {
-                        val fileText =
-                            requireContext().contentResolver.openInputStream(file)!!.use {
-                                it.bufferedReader().readText()
-                            }
-                        RawUpdater.parseRaw(fileText, fileName ?: "")
-                            ?.let { pl -> proxies.addAll(pl) }
-                    }
-                    if (proxies.isEmpty()) onMainDispatcher {
-                        snackbar(getString(R.string.no_proxies_found_in_file)).show()
-                    } else import(proxies)
-                } catch (e: SubscriptionFoundException) {
-                    (requireActivity() as MainActivity).importSubscription(e.link.toUri())
-                } catch (e: Exception) {
-                    Logs.w(e)
-                    onMainDispatcher {
-                        snackbar(e.readableMessage).show()
-                    }
-                }
-            }
-        }
-
-    suspend fun import(proxies: List<AbstractBean>) {
-        val targetId = DataStore.selectedGroupForImport()
-        for (proxy in proxies) {
-            ProfileManager.createProfile(targetId, proxy)
-        }
-        onMainDispatcher {
-            DataStore.editingGroup = targetId
-            snackbar(
-                requireContext().resources.getQuantityString(
-                    R.plurals.added, proxies.size, proxies.size
-                )
-            ).show()
-        }
-
-    }
-
     override fun onMenuItemClick(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.action_scan_qr_code -> {
-                startActivity(Intent(context, ScannerActivity::class.java))
-            }
-
-            R.id.action_import_clipboard -> {
-                val text = SagerNet.getClipboardText()
-                if (text.isBlank()) {
-                    snackbar(getString(R.string.clipboard_empty)).show()
-                } else runOnDefaultDispatcher {
-                    try {
-                        val proxies = RawUpdater.parseRaw(text)
-                        if (proxies.isNullOrEmpty()) onMainDispatcher {
-                            snackbar(getString(R.string.no_proxies_found_in_clipboard)).show()
-                        } else import(proxies)
-                    } catch (e: SubscriptionFoundException) {
-                        (requireActivity() as MainActivity).importSubscription(e.link.toUri())
-                    } catch (e: Exception) {
-                        Logs.w(e)
-
-                        onMainDispatcher {
-                            snackbar(e.readableMessage).show()
-                        }
-                    }
-                }
-            }
-
-            R.id.action_import_file -> {
-                startFilesForResult(importFile, "*/*")
-            }
-
-            R.id.action_new_socks -> {
-                startActivity(Intent(requireActivity(), SocksSettingsActivity::class.java))
-            }
-
-            R.id.action_new_http -> {
-                startActivity(Intent(requireActivity(), HttpSettingsActivity::class.java))
-            }
-
-            R.id.action_new_ss -> {
-                startActivity(Intent(requireActivity(), ShadowsocksSettingsActivity::class.java))
-            }
-
-            R.id.action_new_vmess -> {
-                startActivity(Intent(requireActivity(), VMessSettingsActivity::class.java))
-            }
-
-            R.id.action_new_vless -> {
-                startActivity(Intent(requireActivity(), VMessSettingsActivity::class.java).apply {
-                    putExtra("vless", true)
-                })
-            }
-
-            R.id.action_new_trojan -> {
-                startActivity(Intent(requireActivity(), TrojanSettingsActivity::class.java))
-            }
-
-            R.id.action_new_trojan_go -> {
-                startActivity(Intent(requireActivity(), TrojanGoSettingsActivity::class.java))
-            }
-
-            R.id.action_new_mieru -> {
-                startActivity(Intent(requireActivity(), MieruSettingsActivity::class.java))
-            }
-
-            R.id.action_new_naive -> {
-                startActivity(Intent(requireActivity(), NaiveSettingsActivity::class.java))
-            }
-
-            R.id.action_new_hysteria -> {
-                startActivity(Intent(requireActivity(), HysteriaSettingsActivity::class.java))
-            }
-
-            R.id.action_new_tuic -> {
-                startActivity(Intent(requireActivity(), TuicSettingsActivity::class.java))
-            }
-
-            R.id.action_new_ssh -> {
-                startActivity(Intent(requireActivity(), SSHSettingsActivity::class.java))
-            }
-
-            R.id.action_new_wg -> {
-                startActivity(Intent(requireActivity(), WireGuardSettingsActivity::class.java))
-            }
-
-            R.id.action_new_shadowtls -> {
-                startActivity(Intent(requireActivity(), ShadowTLSSettingsActivity::class.java))
-            }
-
-            R.id.action_new_anytls -> {
-                startActivity(Intent(requireActivity(), AnyTLSSettingsActivity::class.java))
-            }
-
-            R.id.action_new_config -> {
-                startActivity(Intent(requireActivity(), ConfigSettingActivity::class.java))
-            }
-
-            R.id.action_new_chain -> {
-                startActivity(Intent(requireActivity(), ChainSettingsActivity::class.java))
-            }
-
             R.id.action_update_subscription -> {
                 val group = DataStore.currentGroup()
                 if (group.type != GroupType.SUBSCRIPTION) {

@@ -16,7 +16,6 @@ class ToolsFragment : ToolbarFragment(R.layout.layout_tools) {
 
         val tools = mutableListOf<NamedFragment>()
         tools.add(NetworkFragment())
-        tools.add(BackupFragment())
 
         val binding = LayoutToolsBinding.bind(view)
         binding.toolsPager.adapter = ToolsAdapter(tools)
