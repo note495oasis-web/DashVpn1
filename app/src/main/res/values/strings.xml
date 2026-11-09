@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">NekoBox</string>
-    <string name="app_name_long" translatable="false">NekoBox for Android</string>
+    <string name="app_name" translatable="false">DashVPN</string>
+    <string name="app_name_long" translatable="false">DashVPN</string>
     <string name="app_desc">The universal proxy toolchain for Android, written in Kotlin.</string>
     <string name="project">Project</string>
     <string name="github">Source code</string>
     <string name="telegram">Telegram update channel</string>
     <string name="oss_licenses">Open source licenses</string>
     <string name="app_version">Version</string>
+    <string name="based_on">Based on NekoBox for Android · GPL-3.0</string>
     <string name="version_x">Version (%s)</string>
     <string name="logcat">Export debug information</string>
     <string name="menu_configuration">Configuration</string>
