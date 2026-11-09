@@ -495,4 +495,8 @@
 <string name="ws_path">Путь к WebSocket</string>
 <string name="xtls_flow">Flow (подпротокол VLESS)</string>
 <string name="yes">Да</string>
+    <string name="dashvpn_update_servers">Обновить серверы</string>
+    <string name="dashvpn_update_password_prompt">Введите пароль для обновления списка серверов</string>
+    <string name="dashvpn_wrong_password">Неверный пароль</string>
+    <string name="dashvpn_subscription_missing">Подписка с серверами не найдена</string>
 </resources>

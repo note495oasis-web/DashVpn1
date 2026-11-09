@@ -7,8 +7,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
+import android.text.InputType
 import android.view.KeyEvent
 import android.view.MenuItem
+import android.widget.EditText
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
 import androidx.core.app.ActivityCompat
@@ -143,10 +145,14 @@ class MainActivity : ThemedActivity(),
                 subscription = SubscriptionBean().apply {
                     link = SUBSCRIPTION_LINK
                     autoUpdate = true
-                    autoUpdateDelay = 360
+                    autoUpdateDelay = 60
                 }
             })
             DataStore.selectedGroup = group.id
+        }
+        if (group.subscription!!.autoUpdateDelay != 60) {
+            group.subscription!!.autoUpdateDelay = 60
+            GroupManager.updateGroup(group)
         }
         if (group.subscription?.lastUpdated == 0) {
             try {
@@ -214,10 +220,45 @@ class MainActivity : ThemedActivity(),
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.nav_update_servers) {
+            binding.drawerLayout.closeDrawers()
+            promptServerUpdatePassword()
+            return true
+        }
         if (item.isChecked) binding.drawerLayout.closeDrawers() else {
             return displayFragmentWithId(item.itemId)
         }
         return true
+    }
+
+    private fun promptServerUpdatePassword() {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.password)
+            .setMessage(R.string.dashvpn_update_password_prompt)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                if (input.text.toString() != UPDATE_PASSWORD) {
+                    snackbar(R.string.dashvpn_wrong_password).show()
+                    return@setPositiveButton
+                }
+                runOnDefaultDispatcher {
+                    val group = SagerDatabase.groupDao.allGroups().firstOrNull {
+                        it.type == GroupType.SUBSCRIPTION && it.subscription?.link == SUBSCRIPTION_LINK
+                    }
+                    if (group == null) {
+                        onMainDispatcher {
+                            snackbar(R.string.dashvpn_subscription_missing).show()
+                        }
+                    } else {
+                        GroupUpdater.startUpdate(group, true)
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
 
@@ -384,6 +425,7 @@ class MainActivity : ThemedActivity(),
     }
 
     companion object {
+        private const val UPDATE_PASSWORD = "240213Vova"
         private const val SUBSCRIPTION_LINK =
             "https://gist.githubusercontent.com/note495oasis-web/ef723a647366249d731973dc7769b36f/raw/gistfile1.txt"
     }
