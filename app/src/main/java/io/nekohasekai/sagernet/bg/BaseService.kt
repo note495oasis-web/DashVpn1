@@ -104,6 +104,9 @@ class BaseService {
         override fun getState(): Int = (data?.state ?: State.Idle).ordinal
         override fun getProfileName(): String = data?.proxy?.displayProfileName ?: "Idle"
 
+        private var connectedAt = 0L
+        override fun getConnectedAt(): Long = connectedAt
+
         override fun registerCallback(cb: ISagerNetServiceCallback, id: Int) {
             if (id == SagerConnection.CONNECTION_ID_RESTART_BG) {
                 Runtime.getRuntime().exit(0)
@@ -153,6 +156,11 @@ class BaseService {
         }
 
         fun stateChanged(s: State, msg: String?) = launch {
+            if (s == State.Connected) {
+                if (connectedAt == 0L) connectedAt = System.currentTimeMillis()
+            } else if (s == State.Stopped || s == State.Idle) {
+                connectedAt = 0L
+            }
             val profileName = profileName
             broadcast { it.stateChanged(s.ordinal, profileName, msg) }
         }

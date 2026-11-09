@@ -296,10 +296,6 @@ class MainActivity : ThemedActivity(),
         if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(null)
     }
 
-    fun connectSelected() {
-        if (DataStore.serviceState.canStop) SagerNet.reloadService() else connect.launch(null)
-    }
-
     private fun changeState(
         state: BaseService.State,
         msg: String? = null,

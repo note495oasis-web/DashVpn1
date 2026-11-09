@@ -95,6 +95,18 @@
             </LinearLayout>
         </FrameLayout>
 
+        <TextView
+            android:id="@+id/connection_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:textColor="@color/dashvpn_text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:text="00:12:34"
+            tools:visibility="visible" />
+
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/selected_server_card"
             android:layout_width="match_parent"

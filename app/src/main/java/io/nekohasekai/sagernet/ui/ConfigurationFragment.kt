@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.LinearGradient
 import android.graphics.Shader
 import android.os.Bundle
+import android.os.RemoteException
 import android.os.SystemClock
 import android.text.SpannableStringBuilder
 import android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -20,10 +21,14 @@ import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.core.view.size
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceDataStore
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -72,6 +77,7 @@ import io.nekohasekai.sagernet.widget.UndoSnackbarManager
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -110,6 +116,7 @@ class ConfigurationFragment @JvmOverloads constructor(
     private lateinit var selectedName: TextView
     private lateinit var selectedDescription: TextView
     private lateinit var selectedEmpty: TextView
+    private lateinit var connectionTime: TextView
 
     fun getCurrentGroupFragment(): GroupFragment? {
         return try {
@@ -228,6 +235,18 @@ class ConfigurationFragment @JvmOverloads constructor(
         selectedName = view.findViewById(R.id.selected_name)
         selectedDescription = view.findViewById(R.id.selected_description)
         selectedEmpty = view.findViewById(R.id.selected_empty)
+        connectionTime = view.findViewById(R.id.connection_time)
+
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(bottom = bars.bottom)
+            insets
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(headerView) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(top = dp2px(8) + bars.top)
+            insets
+        }
 
         if (select) {
             headerView.isGone = true
@@ -246,6 +265,24 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
             updateServiceState(DataStore.serviceState)
             updateSelectedServer()
+            viewLifecycleOwner.lifecycleScope.launch {
+                while (isActive) {
+                    val since = try {
+                        (activity as? MainActivity)?.connection?.service?.connectedAt ?: 0L
+                    } catch (_: RemoteException) {
+                        0L
+                    }
+                    if (DataStore.serviceState == BaseService.State.Connected && since > 0) {
+                        val sec = ((System.currentTimeMillis() - since) / 1000).coerceAtLeast(0)
+                        connectionTime.text =
+                            String.format("%02d:%02d:%02d", sec / 3600, (sec / 60) % 60, sec % 60)
+                        connectionTime.isVisible = true
+                    } else {
+                        connectionTime.isGone = true
+                    }
+                    delay(1000)
+                }
+            }
         }
     }
 
@@ -1424,7 +1461,6 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                 } else {
                     view.setOnClickListener {
-                        val mainActivity = requireActivity() as MainActivity
                         runOnDefaultDispatcher {
                             val old = DataStore.selectedProxy
                             if (old != proxyEntity.id) {
@@ -1433,7 +1469,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 ProfileManager.postUpdate(proxyEntity.id, true)
                             }
                             onMainDispatcher {
-                                mainActivity.connectSelected()
+                                (parentFragment as? ConfigurationFragment)?.updateSelectedServer()
                             }
                         }
                     }
