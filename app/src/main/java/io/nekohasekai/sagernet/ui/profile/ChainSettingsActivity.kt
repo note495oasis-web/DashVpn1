@@ -4,15 +4,13 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.text.format.Formatter
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.activity.result.component1
 import androidx.activity.result.component2
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.isVisible
+import androidx.core.view.isGone
 import androidx.preference.PreferenceFragmentCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -27,7 +25,7 @@ import io.nekohasekai.sagernet.databinding.LayoutProfileBinding
 import io.nekohasekai.sagernet.fmt.internal.ChainBean
 import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.ui.ProfileSelectActivity
-import moe.matsuri.nb4a.Protocols.getProtocolColor
+import io.nekohasekai.sagernet.utils.DashVpn
 
 class ChainSettingsActivity : ProfileSettingsActivity<ChainBean>(R.layout.layout_chain_settings) {
 
@@ -250,35 +248,19 @@ class ChainSettingsActivity : ProfileSettingsActivity<ChainBean>(R.layout.layout
         }
     }
 
-    inner class ProfileHolder(binding: LayoutProfileBinding) :
+    inner class ProfileHolder(val binding: LayoutProfileBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        val profileName = binding.profileName
-        val profileType = binding.profileType
-        val trafficText: TextView = binding.trafficText
-        val editButton = binding.edit
-        val shareLayout = binding.share
-
         fun bind(proxyEntity: ProxyEntity) {
+            val info = DashVpn.parseRemark(proxyEntity.displayName() ?: "")
+            binding.profileName.text = info.name
+            binding.serverFlag.setImageResource(DashVpn.flagRes(info.countryCode))
+            binding.profileType.text = DashVpn.protocolBadge(proxyEntity.displayType())
+            binding.profileDescription.text = info.description ?: ""
+            binding.profileDescription.isGone = info.description == null
+            binding.profileStatus.isGone = true
 
-            profileName.text = proxyEntity.displayName()
-            profileType.text = proxyEntity.displayType()
-            profileType.setTextColor(getProtocolColor(proxyEntity.type))
-
-            val rx = proxyEntity.rx
-            val tx = proxyEntity.tx
-
-            val showTraffic = rx + tx != 0L
-            trafficText.isVisible = showTraffic
-            if (showTraffic) {
-                trafficText.text = itemView.context.getString(
-                    R.string.traffic,
-                    Formatter.formatFileSize(itemView.context, tx),
-                    Formatter.formatFileSize(itemView.context, rx)
-                )
-            }
-
-            editButton.setOnClickListener {
+            binding.root.setOnClickListener {
                 replacing = bindingAdapterPosition
                 selectProfileForAdd.launch(Intent(
                     this@ChainSettingsActivity, ProfileSelectActivity::class.java
@@ -286,8 +268,6 @@ class ChainSettingsActivity : ProfileSettingsActivity<ChainBean>(R.layout.layout
                     putExtra(ProfileSelectActivity.EXTRA_SELECTED, proxyEntity)
                 })
             }
-
-            shareLayout.isVisible = false
         }
 
     }
