@@ -1,11 +1,8 @@
 package io.nekohasekai.sagernet.utils
 
 import android.content.Context
-import android.content.res.Configuration
 import androidx.appcompat.app.AppCompatDelegate
 import io.nekohasekai.sagernet.R
-import io.nekohasekai.sagernet.database.DataStore
-import io.nekohasekai.sagernet.ktx.app
 
 object Theme {
 
@@ -31,7 +28,7 @@ object Theme {
     const val BLUE_GREY = 20
     const val BLACK = 21
 
-    private fun defaultTheme() = PINK_SSR
+    private fun defaultTheme() = BLACK
 
     fun apply(context: Context) {
         context.setTheme(getTheme())
@@ -41,13 +38,9 @@ object Theme {
         context.setTheme(getDialogTheme())
     }
 
-    fun getTheme(): Int {
-        return getTheme(DataStore.appTheme)
-    }
+    fun getTheme(): Int = R.style.Theme_SagerNet_Black
 
-    fun getDialogTheme(): Int {
-        return getDialogTheme(DataStore.appTheme)
-    }
+    fun getDialogTheme(): Int = R.style.Theme_SagerNet_Dialog_Black
 
     fun getTheme(theme: Int): Int {
         return when (theme) {
@@ -104,12 +97,7 @@ object Theme {
     }
 
     var currentNightMode = -1
-    fun getNightMode(): Int {
-        if (currentNightMode == -1) {
-            currentNightMode = DataStore.nightTheme
-        }
-        return getNightMode(currentNightMode)
-    }
+    fun getNightMode(): Int = AppCompatDelegate.MODE_NIGHT_YES
 
     fun getNightMode(mode: Int): Int {
         return when (mode) {
@@ -120,13 +108,7 @@ object Theme {
         }
     }
 
-    fun usingNightMode(): Boolean {
-        return when (DataStore.nightTheme) {
-            1 -> true
-            2 -> false
-            else -> (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        }
-    }
+    fun usingNightMode(): Boolean = true
 
     fun applyNightTheme() {
         AppCompatDelegate.setDefaultNightMode(getNightMode())

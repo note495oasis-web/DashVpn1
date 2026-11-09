@@ -38,6 +38,7 @@
             android:layout_height="wrap_content"
             android:elevation="6dp"
             android:nextFocusDown="@+id/stats"
+            android:visibility="gone"
             app:backgroundTint="?fabColorBackground"
             app:layout_anchor="@id/stats"
             app:pressedTranslationZ="6dp"

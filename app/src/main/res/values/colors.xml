@@ -288,6 +288,13 @@
     <color name="color_ng_black_accent">#9E9E9E</color>
     <color name="color_ng_black_primary">#2B2B2B</color>
 
+    <color name="dashvpn_bg">#02040C</color>
+    <color name="dashvpn_card">#0D1426</color>
+    <color name="dashvpn_border">#1E2A45</color>
+    <color name="dashvpn_accent">#4CFF4C</color>
+    <color name="dashvpn_accent_end">#FFE93C</color>
+    <color name="dashvpn_text_secondary">#8A94AD</color>
+
     <color name="preference_simple_menu_background">#FAFAFA</color>
 
 </resources>

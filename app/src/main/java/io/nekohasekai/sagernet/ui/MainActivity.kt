@@ -41,6 +41,7 @@ import io.nekohasekai.sagernet.ktx.isPreview
 import io.nekohasekai.sagernet.ktx.launchCustomTab
 import io.nekohasekai.sagernet.ktx.onMainDispatcher
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
+import kotlinx.coroutines.CancellationException
 
 class MainActivity : ThemedActivity(),
     SagerConnection.Callback,
@@ -83,11 +84,7 @@ class MainActivity : ThemedActivity(),
             }
         }
 
-        binding.fab.setOnClickListener {
-            if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(
-                null
-            )
-        }
+        binding.fab.setOnClickListener { toggleService() }
         binding.stats.setOnClickListener { if (DataStore.serviceState.connected) binding.stats.testConnection() }
 
         setContentView(binding.root)
@@ -95,8 +92,6 @@ class MainActivity : ThemedActivity(),
         connection.connect(this, this)
         DataStore.configurationStore.registerChangeListener(this)
         GroupManager.userInterface = GroupInterfaceAdapter(this)
-
-        refreshNavMenu(DataStore.enableClashAPI)
 
         // sdk 33 notification
         if (Build.VERSION.SDK_INT >= 33) {
@@ -116,12 +111,6 @@ class MainActivity : ThemedActivity(),
                 .setMessage(R.string.preview_version_hint)
                 .setPositiveButton(android.R.string.ok, null)
                 .show()
-        }
-    }
-
-    fun refreshNavMenu(clashApi: Boolean) {
-        if (::navigation.isInitialized) {
-            navigation.menu.findItem(R.id.nav_traffic)?.isVisible = clashApi
         }
     }
 
@@ -148,7 +137,11 @@ class MainActivity : ThemedActivity(),
             DataStore.selectedGroup = group.id
         }
         if (group.subscription?.lastUpdated == 0) {
-            GroupUpdater.startUpdate(group, false)
+            try {
+                GroupUpdater.executeUpdate(group, false)
+            } catch (_: CancellationException) {
+                // another update already running; it will reload the list itself
+            }
         }
     }
 
@@ -220,7 +213,7 @@ class MainActivity : ThemedActivity(),
     fun displayFragment(fragment: ToolbarFragment) {
         if (fragment is ConfigurationFragment) {
             binding.stats.allowShow = true
-            binding.fab.show()
+            binding.fab.hide()
         } else if (!DataStore.showBottomBar) {
             binding.stats.allowShow = false
             binding.stats.performHide()
@@ -238,18 +231,20 @@ class MainActivity : ThemedActivity(),
                 displayFragment(ConfigurationFragment())
             }
 
-            R.id.nav_group -> displayFragment(GroupFragment())
-            R.id.nav_route -> displayFragment(RouteFragment())
-            R.id.nav_settings -> displayFragment(SettingsFragment())
-            R.id.nav_traffic -> displayFragment(WebviewFragment())
-            R.id.nav_tools -> displayFragment(ToolsFragment())
-            R.id.nav_logcat -> displayFragment(LogcatFragment())
             R.id.nav_about -> displayFragment(AboutFragment())
 
             else -> return false
         }
         navigation.menu.findItem(id).isChecked = true
         return true
+    }
+
+    fun toggleService() {
+        if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(null)
+    }
+
+    fun connectSelected() {
+        if (DataStore.serviceState.canStop) SagerNet.reloadService() else connect.launch(null)
     }
 
     private fun changeState(
@@ -261,6 +256,8 @@ class MainActivity : ThemedActivity(),
 
         binding.fab.changeState(state, DataStore.serviceState, animate)
         binding.stats.changeState(state)
+        (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ConfigurationFragment)
+            ?.updateServiceState(state)
         if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
     }
 
@@ -316,6 +313,8 @@ class MainActivity : ThemedActivity(),
             ProfileManager.postUpdate(old, true)
             ProfileManager.postUpdate(id, true)
         }
+        (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ConfigurationFragment)
+            ?.updateSelectedServer()
     }
 
     override fun onPreferenceDataStoreChanged(store: PreferenceDataStore, key: String) {

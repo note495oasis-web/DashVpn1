@@ -439,15 +439,26 @@
     </style>
 
     <style name="Theme.SagerNet.Black">
-        <item name="colorPrimary">@color/color_ng_black_primary</item>
-        <item name="colorPrimaryDark">@color/color_ng_black_primary</item>
-        <item name="colorAccent">@color/color_ng_black_accent</item>
-        <item name="colorMaterial100">@color/color_ng_black_primary</item>
-        <item name="colorMaterial300">@color/color_ng_black_primary</item>
+        <item name="colorPrimary">@color/dashvpn_accent</item>
+        <item name="colorPrimaryDark">@color/dashvpn_bg</item>
+        <item name="colorAccent">@color/dashvpn_accent</item>
+        <item name="colorMaterial100">@color/dashvpn_card</item>
+        <item name="colorMaterial300">@color/dashvpn_card</item>
 
-        <item name="selectedColorPrimary">@color/color_ng_black_accent</item>
-        <item name="fabColorBackground">@color/color_ng_black_accent</item>
-        <item name="itemShapeFillColor">@color/color_ng_black_accent</item>
+        <item name="selectedColorPrimary">@color/dashvpn_accent</item>
+        <item name="fabColorBackground">@color/dashvpn_accent</item>
+        <item name="itemShapeFillColor">@color/dashvpn_card</item>
+
+        <item name="android:windowBackground">@color/dashvpn_bg</item>
+        <item name="android:colorBackground">@color/dashvpn_bg</item>
+        <item name="colorSurface">@color/dashvpn_card</item>
+        <item name="colorOnSurface">@color/white</item>
+        <item name="colorOnPrimary">@color/dashvpn_bg</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">@color/dashvpn_text_secondary</item>
+        <item name="android:statusBarColor">@color/dashvpn_bg</item>
+        <item name="android:navigationBarColor">@color/dashvpn_bg</item>
+        <item name="colorControlActivated">@color/dashvpn_accent</item>
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
@@ -456,15 +467,24 @@
     </style>
 
     <style name="Theme.SagerNet.Dialog.Black">
-        <item name="colorPrimary">@color/color_ng_black_primary</item>
-        <item name="colorPrimaryDark">@color/color_ng_black_primary</item>
-        <item name="colorAccent">@color/color_ng_black_accent</item>
-        <item name="colorMaterial100">@color/color_ng_black_primary</item>
-        <item name="colorMaterial300">@color/color_ng_black_primary</item>
+        <item name="colorPrimary">@color/dashvpn_accent</item>
+        <item name="colorPrimaryDark">@color/dashvpn_bg</item>
+        <item name="colorAccent">@color/dashvpn_accent</item>
+        <item name="colorMaterial100">@color/dashvpn_card</item>
+        <item name="colorMaterial300">@color/dashvpn_card</item>
 
-        <item name="selectedColorPrimary">@color/color_ng_black_accent</item>
-        <item name="fabColorBackground">@color/color_ng_black_accent</item>
-        <item name="itemShapeFillColor">@color/color_ng_black_accent</item>
+        <item name="selectedColorPrimary">@color/dashvpn_accent</item>
+        <item name="fabColorBackground">@color/dashvpn_accent</item>
+        <item name="itemShapeFillColor">@color/dashvpn_card</item>
+
+        <item name="android:windowBackground">@color/dashvpn_card</item>
+        <item name="android:colorBackground">@color/dashvpn_card</item>
+        <item name="colorSurface">@color/dashvpn_card</item>
+        <item name="colorOnSurface">@color/white</item>
+        <item name="colorOnPrimary">@color/dashvpn_bg</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">@color/dashvpn_text_secondary</item>
+        <item name="colorControlActivated">@color/dashvpn_accent</item>
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
@@ -473,9 +493,11 @@
     </style>
 
     <style name="Theme.Start" parent="Theme.MaterialComponents.DayNight">
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="colorPrimary">@android:color/transparent</item>
-        <item name="colorPrimaryDark">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/dashvpn_bg</item>
+        <item name="android:statusBarColor">@color/dashvpn_bg</item>
+        <item name="android:navigationBarColor">@color/dashvpn_bg</item>
+        <item name="colorPrimary">@color/dashvpn_accent</item>
+        <item name="colorPrimaryDark">@color/dashvpn_bg</item>
         <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="windowActionBar">false</item>

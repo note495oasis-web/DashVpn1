@@ -9,6 +9,9 @@
     <string name="oss_licenses">Open source licenses</string>
     <string name="app_version">Version</string>
     <string name="based_on">Based on NekoBox for Android · GPL-3.0</string>
+    <string name="dashvpn_connected">Connected</string>
+    <string name="dashvpn_loading_servers">Loading servers…</string>
+    <string name="dashvpn_update_servers">Tap to load servers</string>
     <string name="version_x">Version (%s)</string>
     <string name="logcat">Export debug information</string>
     <string name="menu_configuration">Configuration</string>
