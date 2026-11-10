@@ -2,6 +2,8 @@ package io.nekohasekai.sagernet.fmt.v2ray
 
 import android.text.TextUtils
 import com.google.gson.Gson
+import com.google.gson.JsonElement
+import com.google.gson.JsonParser
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.fmt.http.HttpBean
 import io.nekohasekai.sagernet.fmt.trojan.TrojanBean
@@ -12,6 +14,8 @@ import moe.matsuri.nb4a.utils.listByLineOrComma
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.json.JSONObject
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 data class VmessQRCode(
     var v: String = "",
@@ -225,6 +229,21 @@ fun StandardV2RayBean.parseDuckSoft(url: HttpUrl) {
             }
             url.queryParameter("path")?.let {
                 path = it
+            }
+        }
+
+        "xhttp" -> {
+            url.queryParameter("host")?.let {
+                host = it
+            }
+            url.queryParameter("path")?.let {
+                path = it
+            }
+            url.queryParameter("mode")?.let {
+                xhttpMode = it
+            }
+            url.queryParameter("extra")?.let { raw ->
+                xhttpExtra = if (raw.trimStart().startsWith("{")) raw else URLDecoder.decode(raw, "UTF-8")
             }
         }
     }
@@ -473,6 +492,21 @@ fun StandardV2RayBean.toUriVMessVLESSTrojan(isTrojan: Boolean): String {
                 builder.setQueryParameter("serviceName", path)
             }
         }
+
+        "xhttp" -> {
+            if (host.isNotBlank()) {
+                builder.addQueryParameter("host", host)
+            }
+            if (path.isNotBlank()) {
+                builder.addQueryParameter("path", path)
+            }
+            if (xhttpMode.isNotBlank()) {
+                builder.addQueryParameter("mode", xhttpMode)
+            }
+            if (xhttpExtra.isNotBlank()) {
+                builder.addQueryParameter("extra", URLEncoder.encode(xhttpExtra, "UTF-8"))
+            }
+        }
     }
 
     if (security.isNotBlank() && security != "none") {
@@ -584,9 +618,112 @@ fun buildSingBoxOutboundStreamSettings(bean: StandardV2RayBean): V2RayTransportO
                 path = bean.path
             }
         }
+
+        "xhttp" -> {
+            return V2RayTransportOptions_XHTTPOptions().apply {
+                type = "xhttp"
+                host = bean.host
+                path = bean.path
+                if (bean.xhttpMode.isNotBlank()) mode = bean.xhttpMode
+                if (bean.xhttpExtra.isNotBlank()) {
+                    _hack_config_map.putAll(xhttpExtraToSingBoxMap(bean.xhttpExtra))
+                }
+            }
+        }
     }
 
     return null
+}
+
+private fun xhttpRangeMap(element: JsonElement): Map<String, Long>? {
+    val primitive = element.takeIf { it.isJsonPrimitive }?.asJsonPrimitive ?: return null
+    if (primitive.isNumber) {
+        val value = primitive.asLong
+        return mapOf("from" to value, "to" to value)
+    }
+    val parts = primitive.asString.trim().split("-")
+    val from = parts.getOrNull(0)?.toLongOrNull() ?: return null
+    val to = parts.getOrNull(1)?.toLongOrNull() ?: from
+    return mapOf("from" to from, "to" to to)
+}
+
+// Xray share-link "extra" JSON (camelCase) -> sing-box xhttp options (snake_case).
+fun xhttpExtraToSingBoxMap(extra: String): Map<String, Any> {
+    val result = mutableMapOf<String, Any>()
+    val root = try {
+        JsonParser.parseString(extra).asJsonObject
+    } catch (e: Exception) {
+        Logs.w("parse xhttp extra: " + e.readableMessage)
+        return result
+    }
+    for ((key, target) in mapOf(
+        "mode" to "mode",
+        "path" to "path",
+        "host" to "host",
+        "uplinkHTTPMethod" to "uplink_http_method",
+        "sessionIDPlacement" to "session_id_placement",
+        "sessionIDKey" to "session_id_key",
+        "sessionIDTable" to "session_id_table",
+        "seqPlacement" to "seq_placement",
+        "seqKey" to "seq_key",
+        "uplinkDataPlacement" to "uplink_data_placement",
+        "uplinkDataKey" to "uplink_data_key",
+        "xPaddingKey" to "x_padding_key",
+        "xPaddingHeader" to "x_padding_header",
+        "xPaddingPlacement" to "x_padding_placement",
+        "xPaddingMethod" to "x_padding_method",
+    )) {
+        root.get(key)?.takeIf { it.isJsonPrimitive }?.let { result[target] = it.asString }
+    }
+    for ((key, target) in mapOf(
+        "xPaddingObfsMode" to "x_padding_obfs_mode",
+        "noGRPCHeader" to "no_grpc_header",
+        "noSSEHeader" to "no_sse_header",
+    )) {
+        root.get(key)?.takeIf { it.isJsonPrimitive }?.let { result[target] = it.asBoolean }
+    }
+    for ((key, target) in mapOf(
+        "scMaxBufferedPosts" to "sc_max_buffered_posts",
+        "serverMaxHeaderBytes" to "server_max_header_bytes",
+    )) {
+        root.get(key)?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive?.takeIf { it.isNumber }?.let {
+            result[target] = it.asLong
+        }
+    }
+    for ((key, target) in mapOf(
+        "xPaddingBytes" to "x_padding_bytes",
+        "sessionIDLength" to "session_id_length",
+        "uplinkChunkSize" to "uplink_chunk_size",
+        "scMaxEachPostBytes" to "sc_max_each_post_bytes",
+        "scMinPostsIntervalMs" to "sc_min_posts_interval_ms",
+        "scStreamUpServerSecs" to "sc_stream_up_server_secs",
+    )) {
+        root.get(key)?.let { xhttpRangeMap(it) }?.let { result[target] = it }
+    }
+    root.get("headers")?.takeIf { it.isJsonObject }?.asJsonObject?.let { headers ->
+        val map = mutableMapOf<String, String>()
+        for ((name, value) in headers.entrySet()) {
+            if (value.isJsonPrimitive) map[name] = value.asString
+        }
+        if (map.isNotEmpty()) result["headers"] = map
+    }
+    root.get("xmux")?.takeIf { it.isJsonObject }?.asJsonObject?.let { xmux ->
+        val map = mutableMapOf<String, Any>()
+        for ((key, target) in mapOf(
+            "maxConcurrency" to "max_concurrency",
+            "maxConnections" to "max_connections",
+            "cMaxReuseTimes" to "c_max_reuse_times",
+            "hMaxRequestTimes" to "h_max_request_times",
+            "hMaxReusableSecs" to "h_max_reusable_secs",
+        )) {
+            xmux.get(key)?.let { xhttpRangeMap(it) }?.let { map[target] = it }
+        }
+        xmux.get("hKeepAlivePeriod")?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive?.takeIf { it.isNumber }?.let {
+            map["h_keep_alive_period"] = it.asLong
+        }
+        if (map.isNotEmpty()) result["xmux"] = map
+    }
+    return result
 }
 
 fun buildSingBoxOutboundTLS(bean: StandardV2RayBean): OutboundTLSOptions? {

@@ -14,12 +14,16 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     //////// End of VMess & VLESS ////////
 
-    // "V2Ray Transport" tcp/http/ws/quic/grpc/httpupgrade
+    // "V2Ray Transport" tcp/http/ws/quic/grpc/httpupgrade/xhttp
     public String type;
 
     public String host;
 
     public String path;
+
+    public String xhttpMode;
+
+    public String xhttpExtra;
 
     // --------------------------------------- tls?
 
@@ -79,6 +83,8 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
         if (JavaUtil.isNullOrBlank(host)) host = "";
         if (JavaUtil.isNullOrBlank(path)) path = "";
+        if (JavaUtil.isNullOrBlank(xhttpMode)) xhttpMode = "";
+        if (JavaUtil.isNullOrBlank(xhttpExtra)) xhttpExtra = "";
 
         if (JavaUtil.isNullOrBlank(security)) {
             if (this instanceof TrojanBean) {
@@ -112,7 +118,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(4);
+        output.writeInt(5);
         super.serialize(output);
         output.writeString(uuid);
         output.writeString(encryption);
@@ -141,6 +147,13 @@ public abstract class StandardV2RayBean extends AbstractBean {
             }
             case "grpc": {
                 output.writeString(path);
+                break;
+            }
+            case "xhttp": {
+                output.writeString(host);
+                output.writeString(path);
+                output.writeString(xhttpMode);
+                output.writeString(xhttpExtra);
                 break;
             }
         }
@@ -202,6 +215,15 @@ public abstract class StandardV2RayBean extends AbstractBean {
                     // 解决老版本数据的读取问题
                     input.readString();
                     input.readString();
+                }
+                break;
+            }
+            case "xhttp": {
+                if (version >= 5) {
+                    host = input.readString();
+                    path = input.readString();
+                    xhttpMode = input.readString();
+                    xhttpExtra = input.readString();
                 }
                 break;
             }
